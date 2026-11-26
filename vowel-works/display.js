@@ -18,7 +18,7 @@ function createDisplay() {
  try{active=makeStage()}catch{switchToStill()}
  canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();switchToStill()});
  return {
-  judge(value){state.judge=value;if(active)active.judge(value);else showStill()},
+  judge(value,clean=true){state.judge=value;if(active)active.judge(value,clean);else showStill()},
   awards(rewards){document.querySelector('main').classList.toggle('gold-mic',!!rewards.like);if(active)active.awards(rewards)},
   pose(x,y,on){Object.assign(state,{x,y,voicing:on});if(active)active.pose(x,y,on);else showStill()},
   hit(ok){if(active){active.hit(ok);return}if(!ok){state.slip=1;clearTimeout(slipTimer);slipTimer=setTimeout(()=>{state.slip=0;showStill()},480)}showStill();still.animate?.([{transform:'translateX(-2px)'},{transform:'translateX(2px)'},{transform:'none'}],{duration:200})},

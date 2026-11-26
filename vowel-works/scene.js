@@ -28,6 +28,16 @@ function makeStage(){
  const rim=mesh(jury,new T.TorusGeometry(.154,.022,7,28),gold,s*.205,.222,.475);rim.scale.y=.77;
  }
  box(jury,gold,0,.24,.485,.12,.023,.025);const smile=egg(jury,ink,0,-.13,.405,.16,.034,.023);
+ // Director's bench continues under the reverse shot.
+ box(scene,0x83563e,3.76,-1.10,.42,2.52,.17,1.04);
+ box(scene,0x456258,3.76,-1.54,.74,2.34,.77,.13);
+ box(scene,gold,3.76,-1.19,.82,2.37,.023,.04);
+ for(const side of [-1,1])box(scene,gold,3.76+side*1.10,-1.50,.824,.023,.57,.026);
+ const mug=mesh(scene,new T.CylinderGeometry(.105,.085,.17,16),0xc2cfae,4.39,-.93,.61);
+ const handle=mesh(scene,new T.TorusGeometry(.061,.014,6,16),0xc2cfae,4.50,-.93,.61);
+ egg(scene,0x453425,4.39,-.842,.61,.087,.007,.087);
+ box(jury,0xad7955,-.27,-.67,.49,.14,.16,.14);
+ for(let curl=0;curl<4;curl++)egg(jury,0x423941,-.37+curl*.125,.54,.21,.16,.11,.12);
  const clipboard=box(jury,0xc79765,0,-.68,.49,.62,.72,.065);clipboard.rotation.z=.13;
  box(jury,cream,0,-.68,.54,.5,.56,.02);for(let i=0;i<3;i++)box(jury,ink,-.035,-.57-i*.08,.56,.29,.014,.01);
  const badge=egg(mic,gold,0,.08,.14,.07,.055,.025);badge.visible=false;
@@ -49,7 +59,13 @@ function makeStage(){
    for(let n=0;n<4;n++)box(sets[0],n%2?0x9c8659:0x586e5e,xPos+side*(1.06+n*.09),.62,-1.85,.043,1.75,.04);
    const speaker=box(sets[1],ink,xPos+side*1.03,.65,-1.78,.39,1.08,.28);
    for(const dy of [-.28,.14]){egg(sets[1],gold,speaker.position.x,.65+dy,-1.61,.145,.145,.04);egg(sets[1],ink,speaker.position.x,.65+dy,-1.56,.092,.092,.025)}
-   for(let n=0;n<5;n++)egg(sets[2],n%2?0x8f334b:0xb84557,xPos+side*(1.03+n*.13),1.05,-1.75,.17,2.3,.19);
+   const curtain=new T.PlaneGeometry(.94,4.6,20,12);
+   const pos=curtain.attributes.position;
+   for(let v=0;v<pos.count;v++){
+    const u=(pos.getX(v)+.47)/.94,h=(pos.getY(v)+2.3)/4.6;
+    pos.setXYZ(v,pos.getX(v)+side*.095*Math.sin(h*Math.PI),pos.getY(v)+.07*Math.cos(u*5*Math.PI)*(1-h)**4,.095*Math.cos(u*8*Math.PI));
+   }
+   curtain.computeVertexNormals();mesh(sets[2],curtain,0xbb4357,xPos+side*1.43,1.05,-1.75);
   }
  }
  const trim=group(body,0,0,0);
@@ -73,7 +89,18 @@ function makeStage(){
  }
  const cordPath=new T.CatmullRomCurve3([new T.Vector3(-.77,-.96,.83),new T.Vector3(-.65,-1.07,1.02),new T.Vector3(.16,-1.08,.92),new T.Vector3(.79,-1.04,.60)]);
  mesh(scene,new T.TubeGeometry(cordPath,20,.013,5,false),ink,0,0,0);
+
+ const reels=[];
+ const deck=group(scene,.79,-.916,.55);deck.rotation.x=-.29;
+ box(deck,0x384745,0,.035,0,.43,.21,.10);box(deck,0x98734a,0,.035,.055,.405,.19,.016);
+ for(const side of [-1,1]){
+  const hub=group(deck,side*.099,.045,.072);
+  const metalReel=mesh(hub,new T.CylinderGeometry(.080,.080,.018,20),cream,0,0,0);metalReel.rotation.x=Math.PI/2;
+  for(let i=0;i<3;i++)egg(hub,ink,Math.cos(i*2.094)*.043,Math.sin(i*2.094)*.043,.015,.021,.022,.008);
+  egg(hub,gold,0,0,.023,.015,.015,.008);reels.push(hub);
+ }
  const grille=[];for(let j=0;j<5;j++)grille.push(box(body,0xffc264,-.21+j*.105,-.37,.57,.05,.07,.02));
+ const wardrobe=dressStudio({T,head,body,jury,mic,ink,gold,cream,group,mesh,box,egg});
  let cut=false,focus=0;
  
  let x=.5,y=.5,open=0,pulse=0,error=0,act=0;sets.forEach((set,i)=>set.visible=i===0);function size(){renderer.setSize(canvas.clientWidth,canvas.clientHeight,false);cam.aspect=canvas.clientWidth/canvas.clientHeight;cam.fov=Math.max(34,2*Math.atan(1.37/(5*cam.aspect))*180/Math.PI);cam.updateProjectionMatrix()}size();addEventListener('resize',size);
@@ -81,6 +108,6 @@ function makeStage(){
  mouth.scale.x=.43-roundness*.15;mouth.scale.y=.17+open*(.08+y*.12);
  tongue.scale.x=.21-roundness*.07;
  grille.forEach((bar,i)=>bar.scale.y=.04+open*(.035+.08*Math.abs(Math.sin(t*17+i))));
- tongue.position.x=(x-.5)*.44;tongue.position.y=-.34+(1-y)*.17;eyes.forEach((e,i)=>{e.position.x=(i?.32:-.32)+(x-.5)*.11;e.position.z=.66+error*.15;e.scale.y=.115*(.95+.05*Math.cos(t*2))});teeth[4].position.y=-.105-error*.41;teeth[4].rotation.z=error*1.4;brows.forEach((b,i)=>b.rotation.z=(i?1:-1)*(.07+error*.5-pulse*.32));lamp.scale.setScalar(.1+pulse*.035);focus+=((cut?3.7:0)-focus)*.12;jury.rotation.z=cut?Math.sin(t*3)*.045:0;smile.scale.y=.035+Math.abs(Math.sin(t*5))*(cut?.052:0);cam.position.set(focus+Math.sin(t*.42)*.09+act*.05, .64+pulse*.05,5.15-pulse*.14);cam.lookAt(focus,.48,0);renderer.render(scene,cam)}requestAnimationFrame(frame);
- return {judge(v){cut=v},awards(r){badge.visible=r.like;flag.visible=r.comment},pose(a,b,v){x=a;y=b;open=v},hit(good){if(good)pulse=1;else error=1},set(n){act=n;sets.forEach((set,i)=>set.visible=i===n);if(!body.children[0].userData.unique){body.children[0].material=body.children[0].material.clone();body.children[0].userData.unique=true}body.children[0].material.color.setHex([green,0x477ea9,0x9d617d][n]).convertSRGBToLinear()}};
+ tongue.position.x=(x-.5)*.44;tongue.position.y=-.34+(1-y)*.17;eyes.forEach((e,i)=>{e.position.x=(i?.32:-.32)+(x-.5)*.11;e.position.z=.66+error*.15;e.scale.y=.115*(.95+.05*Math.cos(t*2))});teeth[4].position.y=-.105-error*.41;teeth[4].rotation.z=error*1.4;brows.forEach((b,i)=>b.rotation.z=(i?1:-1)*(.07+error*.5-pulse*.32));lamp.scale.setScalar(.1+pulse*.035);focus+=((cut?3.7:0)-focus)*.12;jury.rotation.z=cut?Math.sin(t*3)*.045:0;smile.scale.y=.035+Math.abs(Math.sin(t*5))*(cut?.052:0);cam.position.set(focus+Math.sin(t*.42)*.09+act*.05, .64+pulse*.05,5.15-pulse*.14);cam.lookAt(focus,.48,0);for(const reel of reels)reel.rotation.z=t*(open?3.2:1.5);wardrobe.update(t,cut,open,y,pulse);renderer.render(scene,cam)}requestAnimationFrame(frame);
+ return {judge(v,clean=true){cut=v;wardrobe.verdict(clean)},awards(r){badge.visible=r.like;flag.visible=r.comment},pose(a,b,v){x=a;y=b;open=v},hit(good){if(good)pulse=1;else error=1},set(n){act=n;wardrobe.stage(n);sets.forEach((set,i)=>set.visible=i===n);if(!body.children[0].userData.unique){body.children[0].material=body.children[0].material.clone();body.children[0].userData.unique=true}body.children[0].material.color.setHex([green,0x477ea9,0x9d617d][n]).convertSRGBToLinear()}};
 }

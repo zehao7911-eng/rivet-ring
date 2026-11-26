@@ -37,9 +37,25 @@ function bot(c,rival){
 }
 const me=bot('#238d85',false),foe=bot('#c75746',true),names=['Copper Kid','Sidewinder','Iron Finch','Red Comet','The Foreman'];
 let mode='menu',age=0,clock=0,hold=null,dx=0,dz=-1,charge=0,aiTimer=0,locked=false,hitCD=0,dash=0,loser=null,tier=0,audio;
+const roster=[
+ ['#dc804a',0,.85,.85,'Dodge the charge, then hit the side.'],
+ ['#696bd3',.4,.7,.95,'Sidewinder aims ahead. Change direction.'],
+ ['#84a149',0,.4,1,'Iron Finch recovers quickly. Stay near the center.'],
+ ['#da4248',.15,.9,1.3,'Let Red Comet overshoot the rim.'],
+ ['#ad73bf',.32,.5,1.2,'The Foreman tracks your movement. Cut across its line.']
+];
+const warning=box(S,'#ff9169',0,.03,0,.14,.02,1);
+const pointer=box(S,'#75f7da',0,.04,0,.09,.02,1);
+function line(m,b,a,len,on){m.visible=on;m.scale.z=len;m.rotation.y=a;m.position.set(b.x+Math.sin(a)*(.75+len/2),.045,b.z+Math.cos(a)*(.75+len/2));}
+const sparks=Array.from({length:14},()=>{const m=box(S,cream,0,0,0,.055,.085,.055);m.visible=false;return m;});
+let sparkTime=0,hits=0;
+function burst(x,z){sparkTime=.35;sparks.forEach((m,i)=>{m.visible=true;m.position.set(x,.32,z);m.userData.v=[Math.sin(i*2.4)*(1+i%3),2+i%3,Math.cos(i*2.4)*(1+i%3)];});}
+const board=document.createElement('canvas');board.width=512;board.height=128;
+const ink=board.getContext('2d');ink.fillStyle='#18343a';ink.fillRect(0,0,512,128);ink.fillStyle='#f8cc87';ink.fillRect(0,6,512,4);ink.fillRect(0,117,512,4);ink.font='900 58px system-ui';ink.textAlign='center';ink.fillText('RIVET WORKS',256,84);
+const sign=new T.Mesh(new T.PlaneGeometry(3.8,.95),new T.MeshBasicMaterial({map:new T.CanvasTexture(board)}));sign.position.set(0,1.85,-6.55);S.add(sign);
 function tone(f){try{audio??=new AudioContext();audio.resume().catch(()=>{});const o=audio.createOscillator(),g=audio.createGain(),t=audio.currentTime;o.type='triangle';o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*.55,t+.14);g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.19);o.connect(g);g.connect(audio.destination);o.start();o.stop(t+.2);}catch{}}
 function reset(){Object.assign(me,{x:0,z:1.65,vx:0,vz:0,a:Math.PI});Object.assign(foe,{x:0,z:-1.65,vx:0,vz:0,a:0});for(const b of [me,foe])b.root.rotation.set(0,0,0);}
-function start(){reset();tier=profile.tier;mode='intro';age=0;foe.shell.material.emissive.setHex(0);aiTimer=.9;locked=false;hold=null;dx=0;dz=-1;charge=dash=hitCD=0;loser=null;$('section').hidden=true;$('footer').hidden=false;$('#badge').textContent=names[tier];$('#score').textContent='Wins '+profile.wins;$('aside').textContent='Face off';sdk.prepare();sdk.start();tone(440);}
+function start(){reset();tier=profile.tier;hits=0;foe.shell.material.color.set(roster[tier][0]);mode='intro';age=0;foe.shell.material.emissive.setHex(0);aiTimer=.9;locked=false;hold=null;dx=0;dz=-1;charge=dash=hitCD=0;loser=null;$('section').hidden=true;$('footer').hidden=false;$('#badge').textContent=names[tier];$('#score').textContent='Wins '+profile.wins;$('aside').textContent='BOUT '+(tier+1)+' / 5';sdk.prepare();sdk.start();tone(440);}
 $('button').onclick=start;
 canvas.onpointerdown=e=>{if(mode!=='fight'||hold)return;hold={id:e.pointerId,x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);charge=0;};
 canvas.onpointermove=e=>{if(hold?.id!==e.pointerId)return;const x=e.clientX-hold.x,z=e.clientY-hold.y,n=Math.hypot(x,z);if(n>5){dx=x/n;dz=z/n;}};
@@ -51,21 +67,25 @@ function fight(dt){
  const clamp=(v,l,h)=>Math.min(h,Math.max(l,v));
  if(hold){charge=Math.min(1,charge+dt*1.6);me.vx+=dx*dt*7;me.vz+=dz*dt*7;me.a=Math.atan2(dx,dz);}
  // Port of RamFire.onScannedBot: acquire bearing, face target, drive beyond its current position.
- if(aiTimer<=0){if(!locked){foe.a=Math.atan2(me.x-foe.x,me.z-foe.z);locked=true;aiTimer=.55;foe.shell.material.emissive.setHex(0x43160a);}
- else{const drive=Math.min(5+tier*.3,Math.hypot(me.x-foe.x,me.z-foe.z)+1.5);foe.vx+=Math.sin(foe.a)*drive;foe.vz+=Math.cos(foe.a)*drive;aiTimer=1.0-tier*.08;locked=false;foe.shell.material.emissive.setHex(0);}}
+ if(aiTimer<=0){if(!locked){foe.a=Math.atan2(me.x+me.vx*roster[tier][1]-foe.x,me.z+me.vz*roster[tier][1]-foe.z);locked=true;aiTimer=roster[tier][2];foe.shell.material.emissive.setHex(0x43160a);}
+ else{const drive=roster[tier][3]*Math.min(5+tier*.3,Math.hypot(me.x-foe.x,me.z-foe.z)+1.5);foe.vx+=Math.sin(foe.a)*drive;foe.vz+=Math.cos(foe.a)*drive;aiTimer=1.0-tier*.08;locked=false;foe.shell.material.emissive.setHex(0);}}
  for(const b of [me,foe]){const drag=Math.exp(-dt*(b===me&&dash>0?1.45:2.1));b.vx*=drag;b.vz*=drag;b.x+=b.vx*dt;b.z+=b.vz*dt;}
  let x=foe.x-me.x,z=foe.z-me.z,d=Math.max(.001,Math.hypot(x,z));
  if(d<1.25){x/=d;z/=d;const dep=(1.25-d)*.5;me.x-=x*dep;me.z-=z*dep;foe.x+=x*dep;foe.z+=z*dep;
  const rel=(me.vx-foe.vx)*x+(me.vz-foe.vz)*z;
  if(rel>0){const impulse=rel*.72;me.vx-=x*impulse;me.vz-=z*impulse;foe.vx+=x*impulse;foe.vz+=z*impulse;
- if(dash>0){const flank=1-Math.abs(x*Math.sin(foe.a)+z*Math.cos(foe.a));foe.vx+=x*(2+flank*2.8);foe.vz+=z*(2+flank*2.8);dash=0;}
- if(hitCD<=0){tone(150+clamp(rel,0,8)*33);hitCD=.27;aiTimer=Math.min(aiTimer,.32);}}}
+ if(dash>0){hits++;const flank=1-Math.abs(x*Math.sin(foe.a)+z*Math.cos(foe.a));foe.vx+=x*(2+flank*2.8);foe.vz+=z*(2+flank*2.8);dash=0;}
+ if(hitCD<=0){burst((me.x+foe.x)/2,(me.z+foe.z)/2);tone(150+clamp(rel,0,8)*33);hitCD=.27;aiTimer=Math.min(aiTimer,.32);}}}
  for(const b of [foe,me])if(Math.hypot(b.x,b.z)>3.89){ringOut(b);break;}
 }
 function frame(now){requestAnimationFrame(frame);const dt=Math.min(.04,(now-prev)/1000);prev=now;if(document.hidden)return;age+=dt;clock+=dt;
  if(mode==='intro'&&age>.95){mode='fight';age=0;$('aside').textContent='';}
  if(mode==='fight')fight(dt);
- if(mode==='out'&&age>1.3){mode='result';$('section').hidden=false;$('h1').textContent=loser===foe?'Ring champion':'Back to the pit';$('p').textContent=loser===foe?'Clean push. '+profile.wins+' career wins.':'Try a side hit while the rival is charging.';$('button').textContent=loser===foe?'NEXT BOUT':'REMATCH';}
+ line(warning,foe,foe.a,1.8,mode==='fight'&&locked);
+ line(pointer,me,Math.atan2(dx,dz),.4+charge*1.1,mode==='fight'&&!!hold);
+ if(mode==='fight')$('footer').textContent=hold?(charge>.96?'FULL CHARGE · RELEASE':'CHARGING '+Math.round(charge*100)+'%'):'DRAG TO DRIVE · RELEASE TO RAM';
+ if(sparkTime>0){sparkTime-=dt;for(const m of sparks){const v=m.userData.v;m.position.x+=v[0]*dt;m.position.y+=v[1]*dt;m.position.z+=v[2]*dt;v[1]-=9*dt;m.visible=sparkTime>0;}}
+ if(mode==='out'&&age>1.3){mode='result';$('section').hidden=false;$('h1').textContent=loser===foe?(tier===4?'Cup champion':'Bout won'):'Back to the pit';$('p').textContent=loser===foe?(tier===4?'Brass Cup secured. ':'Next: '+names[tier+1]+'. ')+hits+' clean rams.':roster[tier][4];$('button').textContent=loser===foe?'NEXT BOUT':'REMATCH';}
  for(const b of [me,foe]){const fall=b===loser?Math.min(age,1.3):0;b.root.position.set(b.x*(1+fall*.18),-.01-2.4*fall*fall,b.z*(1+fall*.18));b.root.rotation.set(fall*2.3,b.a,fall*.8);b.shadow.visible=!fall;}
  me.shell.material.color.set(profile.rewards.comment?'#a95b82':profile.rewards.like?'#c6a64b':'#238d85');
  const close=mode==='menu'||mode==='intro',out=mode==='out'||mode==='result';const focus=out?loser:me;

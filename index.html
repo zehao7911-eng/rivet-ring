@@ -119,7 +119,7 @@ const me=bot('#238d85',false),foe=bot('#c75746',true),names=['Copper Kid','Sidew
 let mode='menu',age=0,clock=0,hold=null,dx=0,dz=-1,charge=0,aiTimer=0,locked=false,hitCD=0,dash=0,loser=null,tier=0,audio;
 function tone(f){try{audio??=new AudioContext();audio.resume().catch(()=>{});const o=audio.createOscillator(),g=audio.createGain(),t=audio.currentTime;o.type='triangle';o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*.55,t+.14);g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.19);o.connect(g);g.connect(audio.destination);o.start();o.stop(t+.2);}catch{}}
 function reset(){Object.assign(me,{x:0,z:1.65,vx:0,vz:0,a:Math.PI});Object.assign(foe,{x:0,z:-1.65,vx:0,vz:0,a:0});for(const b of [me,foe])b.root.rotation.set(0,0,0);}
-function start(){reset();tier=profile.tier;mode='intro';age=0;aiTimer=.9;locked=false;hold=null;dx=0;dz=-1;charge=dash=hitCD=0;loser=null;$('section').hidden=true;$('footer').hidden=false;$('#badge').textContent=names[tier];$('#score').textContent='Wins '+profile.wins;$('aside').textContent='Face off';sdk.prepare();sdk.start();tone(440);}
+function start(){reset();tier=profile.tier;mode='intro';age=0;foe.shell.material.emissive.setHex(0);aiTimer=.9;locked=false;hold=null;dx=0;dz=-1;charge=dash=hitCD=0;loser=null;$('section').hidden=true;$('footer').hidden=false;$('#badge').textContent=names[tier];$('#score').textContent='Wins '+profile.wins;$('aside').textContent='Face off';sdk.prepare();sdk.start();tone(440);}
 $('button').onclick=start;
 canvas.onpointerdown=e=>{if(mode!=='fight'||hold)return;hold={id:e.pointerId,x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);charge=0;};
 canvas.onpointermove=e=>{if(hold?.id!==e.pointerId)return;const x=e.clientX-hold.x,z=e.clientY-hold.y,n=Math.hypot(x,z);if(n>5){dx=x/n;dz=z/n;}};
@@ -147,8 +147,9 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min(.04,(now-prev
  if(mode==='fight')fight(dt);
  if(mode==='out'&&age>1.3){mode='result';$('section').hidden=false;$('h1').textContent=loser===foe?'Ring champion':'Back to the pit';$('p').textContent=loser===foe?'Clean push. '+profile.wins+' career wins.':'Try a side hit while the rival is charging.';$('button').textContent=loser===foe?'NEXT BOUT':'REMATCH';}
  for(const b of [me,foe]){const fall=b===loser?Math.min(age,1.3):0;b.root.position.set(b.x*(1+fall*.18),-.01-2.4*fall*fall,b.z*(1+fall*.18));b.root.rotation.set(fall*2.3,b.a,fall*.8);b.shadow.visible=!fall;}
+ me.shell.material.color.set(profile.rewards.comment?'#a95b82':profile.rewards.like?'#c6a64b':'#238d85');
  const close=mode==='menu'||mode==='intro',out=mode==='out'||mode==='result';const focus=out?loser:me;
  const cameraTarget=close?new T.Vector3(2.5,2.9,7.1):out?new T.Vector3(focus.x*.55,5.5,focus.z*.4+8):new T.Vector3(0,13,9.6);
  cam.position.lerp(cameraTarget,1-Math.exp(-dt*5));cam.lookAt(close?0:out?focus.x*.65:0,close?.36:0,close?.85:out?focus.z*.6:0);R.render(S,cam);}
-let prev=performance.now();reset();cam.position.set(2.5,2.9,7.1);function resize(){R.setSize(canvas.clientWidth,canvas.clientHeight,false);cam.aspect=canvas.clientWidth/canvas.clientHeight;cam.updateProjectionMatrix();}resize();addEventListener('resize',resize);addEventListener('pagehide',()=>{sdk.stop();persist();});requestAnimationFrame(frame);
+let prev=performance.now();reset();cam.position.set(2.5,2.9,7.1);function resize(){R.setSize(canvas.clientWidth,canvas.clientHeight,false);cam.aspect=canvas.clientWidth/canvas.clientHeight;cam.fov=Math.max(39,2*Math.atan(4.85/(14.5*cam.aspect))*180/Math.PI);cam.updateProjectionMatrix();}resize();addEventListener('resize',resize);addEventListener('pagehide',()=>{sdk.stop();persist();});requestAnimationFrame(frame);
 })();</script></html>

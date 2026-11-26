@@ -1,0 +1,4 @@
+Vowel Works. Original browser game. Art, staging and gameplay by this project.
+Three.js is distributed with its license in vendor/THREE-LICENSE.txt.
+The audio feedback uses Frank Force's MIT-licensed ZzFX 1.3.2 from the Unifrost game source. Original notice retained in vendor/zzfx.js.
+Gameplay reference: Speaking Simulator by Affable Games. This adaptation has original geometry, audio, dialogue and controls.

@@ -12,21 +12,51 @@ function save(){try{localStorage.setItem(key,JSON.stringify(profile))}catch{}}
 function merge(v,combine){let p=clean(v);if(combine){p.best=p.best.map((n,i)=>Math.max(n,profile.best[i]));for(const k of ['like','comment'])p.rewards[k]||=profile.rewards[k]}profile=p;save();view.awards(p.rewards)}
 const sdk=bridge({read:()=>profile,write:merge,changed(e){if(e.type==='reward')$('credits').textContent=e.kind==='like'?'Gold mic badge earned.':'Fan club badge earned.';if(e.type==='support')$('credits').textContent=[e.like?'Like for a gold mic badge.':'',e.comment?'Comment for a fan club badge.':''].filter(Boolean).join(' ')}});
 let audio,osc,gain,filters=[],soundfx,requestFX=false;
-function arm(){try{if(!audio){audio=new AudioContext();osc=audio.createOscillator();osc.type='sawtooth';gain=audio.createGain();gain.gain.value=0;for(let i=0;i<2;i++){const f=audio.createBiquadFilter();f.type='bandpass';f.Q.value=7;filters.push(f);osc.connect(f);f.connect(gain)}gain.connect(audio.destination);osc.start()}audio.resume().catch(()=>{});if(!requestFX){requestFX=true;import('./vendor/zzfx.js').then(m=>soundfx=m).catch(()=>{})}}catch{}}
+function arm(){try{if(!audio){audio=new (window.AudioContext||window.webkitAudioContext)();osc=audio.createOscillator();osc.type='sawtooth';gain=audio.createGain();gain.gain.value=0;for(let i=0;i<2;i++){const f=audio.createBiquadFilter();f.type='bandpass';f.Q.value=7;filters.push(f);osc.connect(f);f.connect(gain)}gain.connect(audio.destination);osc.start()}audio.resume().catch(()=>{});if(!requestFX){requestFX=true;soundfx=makeEffects(audio)}}catch{}}
 function voice(x,y,on){view.pose(x,y,on?1:0);if(!gain)return;const t=audio.currentTime;gain.gain.setTargetAtTime(on?.18:0,t,.024);osc.frequency.setTargetAtTime(110+25*(1-y),t,.04);filters[0].frequency.setTargetAtTime(260+y*660,t,.035);filters[1].frequency.setTargetAtTime(700+(1-x)*1850,t,.035)}
 function cue(ok){try{soundfx?.ZZFX.audioContext.resume().catch(()=>{});soundfx?.zzfx(.34,0,ok?650:120,.008,.05,.09,ok?0:3,1,ok?3:-1)}catch{}view.hit(ok)}
 const pad=$('pad'),go=$('go');let mode='menu',level=0,line=0,note=0,miss=0,id=null,targetX=.5,targetY=.5;
 const unlocked=()=>Math.min(2,profile.best.findIndex(x=>!x)<0?2:profile.best.findIndex(x=>!x));
 const marks=points.map(([text,x,y])=>{let el=document.createElement('span');el.textContent=text;el.style.left=x*100+'%';el.style.top=y*100+'%';pad.append(el);return el});
-function prompt(){view.judge(false);const sc=scenes[level],seq=sc.lines[line][1];$('title').textContent=sc.name;$('line').textContent=sc.lines[line][0];$('slate').textContent=sc.client.toUpperCase();$('take').textContent='LINE '+(line+1)+' / 3';$('meter').replaceChildren(...seq.map((_,i)=>{let e=document.createElement('i');if(i<note)e.className='lit';return e}));marks.forEach((e,i)=>e.classList.toggle('target',i===seq[note]));$('guide').textContent='Glide to '+points[seq[note]][0]+' · lift to speak';}
+function prompt(){view.judge(false);const sc=scenes[level],seq=sc.lines[line][1];$('title').textContent=sc.name;$('line').textContent=sc.lines[line][0];$('slate').textContent=sc.client.toUpperCase();$('take').textContent='LINE '+(line+1)+' / 3';$('meter').replaceChildren(...seq.map((_,i)=>{let e=document.createElement('i');e.textContent=points[seq[i]][0];e.className=i<note?'lit':i===note?'now':'';return e}));marks.forEach((e,i)=>e.classList.toggle('target',i===seq[note]));$('guide').textContent=level===1?'Hold '+points[seq[note]][0]+' until the strip fills, then lift.':level===2?'Glide through the lit vowels in one breath.':'Touch '+points[seq[note]][0]+' and lift to speak.';$('signal').hidden=false;}
 function start(){arm();level=mode==='menu'?unlocked():level;line=note=miss=0;mode='play';view.set(level);go.hidden=true;pad.hidden=false;sdk.prepare();sdk.start();prompt()}
-function finish(){view.judge(true);mode='result';sdk.end();let stars=miss===0?3:miss<4?2:1;profile.best[level]=Math.max(stars,profile.best[level]);save();sdk.save();pad.hidden=true;go.hidden=false;$('slate').textContent='AUDITION COMPLETE';$('title').textContent=['Callback!','On the air!','Curtain call!'][level];$('line').textContent=scenes[level].win;$('guide').textContent='★'.repeat(stars)+'☆'.repeat(3-stars)+'  ·  '+(miss?miss+' vocal slips':'Flawless take');$('take').textContent='SIGNED';go.textContent=level===2?'Tour again →':'Next studio →'}
-go.onclick=()=>{if(mode==='result')level=(level+1)%3;if(mode==='line'){line++;note=0;mode='play';pad.hidden=false;go.hidden=true;prompt()}else start()};
-function move(e){const r=pad.getBoundingClientRect();targetX=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));targetY=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));voice(targetX,targetY,true);const cross=$('cross');cross.style.display='block';cross.style.left=targetX*100+'%';cross.style.top=targetY*100+'%'}
-function silence(){id=null;voice(targetX,targetY,false);$('cross').style.display='none'}
-pad.onpointerdown=e=>{if(mode!=='play'||id!==null)return;id=e.pointerId;pad.setPointerCapture(id);arm();move(e)};
+function finish(){$('signal').hidden=true;view.judge(true);mode='result';sdk.end();let stars=miss===0?3:miss<4?2:1;profile.best[level]=Math.max(stars,profile.best[level]);save();sdk.save();pad.hidden=true;go.hidden=false;$('slate').textContent='AUDITION COMPLETE';$('title').textContent=['Callback!','On the air!','Curtain call!'][level];$('line').textContent=scenes[level].win;$('guide').textContent='★'.repeat(stars)+'☆'.repeat(3-stars)+'  ·  '+(miss?miss+' vocal slips':'Flawless take');$('take').textContent='SIGNED';go.textContent=level===2?'Tour again →':'Next studio →'}
+let buttonPressed=false;go.onpointerdown=()=>{buttonPressed=true};go.onpointercancel=()=>{buttonPressed=false};go.onclick=e=>{if(e.detail>0&&!buttonPressed)return;buttonPressed=false;if(mode==='result')level=(level+1)%3;if(mode==='line'){line++;note=0;mode='play';pad.hidden=false;go.hidden=true;prompt()}else start()};
+function move(e){const r=pad.getBoundingClientRect();targetX=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));targetY=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));if(!zone())inZoneSince=0;else if(!inZoneSince)inZoneSince=performance.now();voice(targetX,targetY,true);const cross=$('cross');cross.style.display='block';cross.style.left=targetX*100+'%';cross.style.top=targetY*100+'%'}
+let inZoneSince=0,frameToken=0,armed=true;
+function zone(){
+ const target=points[scenes[level].lines[line][1][note]];
+ return Math.hypot((targetX-target[1])/.18,(targetY-target[2])/.29)<=1;
+}
+function tracking(t){
+ if(id===null||mode!=='play')return;
+ const inside=zone(),duration=level===1?330:level===2?210:100;
+ if(inside&&!inZoneSince)inZoneSince=t;
+ if(!inside){inZoneSince=0;armed=true}
+ const amount=inside?Math.min(1,(t-inZoneSince)/duration):0;
+ $('signal').style.transform='scaleX('+amount+')';
+ marks.forEach(m=>m.classList.toggle('tuned',inside&&m.classList.contains('target')));
+ if(level===2&&armed&&amount===1){
+  armed=false;commit();inZoneSince=0;
+  if(mode!=='play'){silence();return}
+ }
+ frameToken=requestAnimationFrame(tracking);
+}
+function silence(){cancelAnimationFrame(frameToken);inZoneSince=0;armed=true;id=null;$('signal').style.transform='scaleX(0)';marks.forEach(m=>m.classList.remove('tuned'));voice(targetX,targetY,false);$('cross').style.display='none'}
+pad.onpointerdown=e=>{if(mode!=='play'||id!==null)return;e.preventDefault();buttonPressed=false;id=e.pointerId;try{pad.setPointerCapture?.(id)}catch{}arm();move(e);inZoneSince=zone()?performance.now():0;armed=true;frameToken=requestAnimationFrame(tracking)};
 pad.onpointermove=e=>{if(id===e.pointerId)move(e)};
-pad.onpointerup=e=>{if(id!==e.pointerId)return;move(e);silence();const seq=scenes[level].lines[line][1],p=points[seq[note]];if(Math.hypot((targetX-p[1])/.18,(targetY-p[2])/.29)>1){miss++;cue(false);$('guide').textContent='Loose tooth! Try '+p[0]+' again.';return}cue(true);note++;if(note<seq.length){prompt();return}if(line===2){finish();return}mode='line';view.judge(true);pad.hidden=true;go.hidden=false;go.textContent='Next line →';$('meter').querySelectorAll('i').forEach(e=>e.className='lit');$('guide').textContent=[['“That sounded almost natural.”','The panel exchanges a nod.'],['The ON AIR light flickers.','The producer turns you up.'],['A hush falls over the hall.','Someone in the balcony cheers.']][level][line]};
-pad.onpointercancel=silence;addEventListener('blur',silence);addEventListener('pagehide',()=>{silence();save();sdk.stop()});if(unlocked())go.textContent='Resume auditions →';
+function commit(){const seq=scenes[level].lines[line][1],p=points[seq[note]];if(Math.hypot((targetX-p[1])/.18,(targetY-p[2])/.29)>1){miss++;cue(false);$('guide').textContent='Loose tooth! Try '+p[0]+' again.';return}cue(true);note++;if(note<seq.length){prompt();return}if(line===2){finish();return}mode='line';$('signal').hidden=true;view.judge(true);pad.hidden=true;go.hidden=false;go.textContent='Next line →';$('meter').querySelectorAll('i').forEach(e=>e.className='lit');$('guide').textContent=[['“That sounded almost natural.”','The panel exchanges a nod.'],['The ON AIR light flickers.','The producer turns you up.'],['A hush falls over the hall.','Someone in the balcony cheers.']][level][line]};
+pad.onpointerup=e=>{
+ if(id!==e.pointerId)return;
+ move(e);
+ const short=level===1&&zone()&&(!inZoneSince||performance.now()-inZoneSince<310);
+ const glided=level===2&&!armed;
+ silence();
+ if(short){$('guide').textContent='Hold the vowel a little longer, then lift.';return}
+ if(!glided)commit();
+};
+pad.onpointercancel=silence;pad.onlostpointercapture=()=>{if(id!==null)silence()};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)silence()});addEventListener('blur',silence);addEventListener('pagehide',()=>{silence();save();sdk.stop()});if(unlocked())go.textContent='Resume auditions →';
 
 view.awards(profile.rewards);
+
